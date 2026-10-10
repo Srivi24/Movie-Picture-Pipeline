@@ -2,8 +2,8 @@ name: frontend-ci-workflow
 
 on:
   workflow_dispatch:
-  # pull_request:
-  push:
+  # push:
+  pull_request:
     branches:
       - main
     paths:
