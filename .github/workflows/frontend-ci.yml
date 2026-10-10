@@ -13,7 +13,7 @@ jobs:
     name: Frontend Lint
     runs-on: ubuntu-latest
     env:
-      NODE_VERSION: 18.14
+      NODE_VERSION: "18.14"
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -77,4 +77,3 @@ jobs:
           -p 3000:3000 \
           -d \
           mp-frontend:latest
-      - name: 
