@@ -7,7 +7,7 @@ from .movies import movies_api
 app = Flask(__name__)
 CORS(app)
 app.register_blueprint(movies_api)
-print("Application is starting...")
+print("Application is starting!...")
 # Start app
 if __name__ == "__main__":
     app.run(
