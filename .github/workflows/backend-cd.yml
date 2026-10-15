@@ -92,12 +92,12 @@ jobs:
       run:
         aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
     - name: Setup Kustomize
-        uses: imranismail/setup-kustomize@v2
+      uses: imranismail/setup-kustomize@v2
     - name: Deploy Docker Image to Amazon EKS
       working-directory: starter/backend/k8s
-      env:
-        IMAGE_TAG: latest
-        REPO_NAME: backend
+      # env:
+      #   IMAGE_TAG: latest
+      #   REPO_NAME: backend
       run: |
         kustomize edit set image backend=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
     # kustomize build | kubectl apply -f -

@@ -89,13 +89,13 @@ jobs:
       run: |
         docker build --build-arg=REACT_APP_MOVIE_API_URL="${{ env.REACT_APP_MOVIE_API_URL }}" -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} starter/frontend
     - name: Tag Docker image
-        run: |
-          docker tag \
-            ${{ env.ECR_REPOSITORY }}:${{ github.sha }} \
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+      run: |
+        docker tag \
+          ${{ env.ECR_REPOSITORY }}:${{ github.sha }} \
+          ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
     - name: Push Docker image to ECR
-        run: |
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+      run: |
+        docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
     - name: Configure Kubeconfig
       working-directory: starter/frontend/k8s
       run: |
@@ -109,16 +109,16 @@ jobs:
       #     kustomize edit set image frontend=956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:${{ github.sha }}
       #     kustomize build | kubectl apply -f -
     - name: Deploy application to EKS
-        run: |
-          kubectl apply -k starter/frontend/k8s
+      run: |
+        kubectl apply -k starter/frontend/k8s
 
-          kubectl set image deployment/frontend \
-            frontend=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        kubectl set image deployment/frontend \
+          frontend=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
-          kubectl rollout status deployment/frontend --timeout=180s
+        kubectl rollout status deployment/frontend --timeout=180s
 
-      - name: Verify frontend service and pods
-        run: |
-          kubectl get deployment frontend
-          kubectl get service frontend
-          kubectl get pods -l app=frontend
+    - name: Verify frontend service and pods
+      run: |
+        kubectl get deployment frontend
+        kubectl get service frontend
+        kubectl get pods -l app=frontend
