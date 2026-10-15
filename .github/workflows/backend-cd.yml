@@ -16,7 +16,7 @@ jobs:
   lint-job:
     name: Backend Lint
     runs-on: ubuntu-latest
-    environment: Devlopmnet Environment
+    # environment: Devlopmnet Environment
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4

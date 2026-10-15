@@ -12,7 +12,7 @@ jobs:
   lint-job:
     name: Frontend Lint
     runs-on: ubuntu-latest
-    environment: Devlopmnet Environment
+    # environment: Devlopmnet Environment
     env:
       NODE_VERSION: "18.14"
     steps:
