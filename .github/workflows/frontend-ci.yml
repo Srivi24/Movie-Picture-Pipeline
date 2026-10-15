@@ -55,6 +55,7 @@ jobs:
     needs: [lint-job, test-job]
     runs-on: ubuntu-latest
     env:
+      NODE_VERSION: 18.14
       REACT_APP_MOVIE_API_URL: 'http://localhost:5000'
     steps:
     - name: Checkout Code
@@ -71,14 +72,14 @@ jobs:
       working-directory: starter/frontend
       run: |
         docker build \
-          --build-arg=REACT_APP_MOVIE_API_URL="${REACT_APP_MOVIE_API_URL}" \
-          --tag=mp-frontend:latest \
+          --build-arg=REACT_APP_MOVIE_API_URL=${{ env.REACT_APP_MOVIE_API_URL }} \
+          --tag=mp-frontend:${{ github.sha }} \
           .
-    - name: Run production container
-      working-directory: starter/frontend
-      run: |
-        docker run \
-        --name mp-frontend \
-        -p 3000:3000 \
-        -d \
-        mp-frontend:latest
+    # - name: Run production container
+    #   working-directory: starter/frontend
+    #   run: |
+    #     docker run \
+    #     --name mp-frontend \
+    #     -p 3000:3000 \
+    #     -d \
+    #     mp-frontend:latest

@@ -9,6 +9,9 @@ on:
       - 'starter/backend/**'
 env:
   PYTHON_VERSION: "3.10"
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: backend
+  EKS_CLUSTER_NAME: cluster
 jobs:
   lint-job:
     name: Backend Lint
@@ -71,28 +74,43 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
-        aws-region: us-east-1
+        # aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
+        aws-region: ${{ env.AWS_REGION }}
     - name: Login to Amazon ECR 
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
     - name: Build and Push Docker Image
       working-directory: starter/backend
-      env:
-        IMAGE_TAG: latest
-        REPO_NAME: backend
+      # env:
+      #   IMAGE_TAG: latest
+      #   REPO_NAME: backend
       run: |
-        docker build --tag 956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:$IMAGE_TAG .
-        docker push 956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:$IMAGE_TAG
+        docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
+        docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
     - name: Update Kubeconfig
       working-directory: starter/backend/k8s
       run:
-        aws eks update-kubeconfig --name cluster --region us-east-1
+        aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+    - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
     - name: Deploy Docker Image to Amazon EKS
       working-directory: starter/backend/k8s
       env:
         IMAGE_TAG: latest
         REPO_NAME: backend
       run: |
-        kustomize edit set image backend=956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:$IMAGE_TAG
-        kustomize build | kubectl apply -f -
+        kustomize edit set image backend=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+    # kustomize build | kubectl apply -f -
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -k starter/backend/k8s
+
+    - name: Verify Kubernetes deployment
+      run: |
+        kubectl rollout status deployment/backend --timeout=180s
+
+    - name: Verify backend service and pods
+      run: |
+        kubectl get deployment backend
+        kubectl get service backend
+        kubectl get pods -l app=backend  

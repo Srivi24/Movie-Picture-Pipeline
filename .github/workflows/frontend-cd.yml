@@ -8,6 +8,12 @@ on:
     paths:
       - 'starter/frontend/**'
 
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: frontend
+  EKS_CLUSTER_NAME: cluster
+  REACT_APP_MOVIE_API_URL: ${{ vars.REACT_APP_MOVIE_API_URL }}
+
 jobs:
   lint-job:
     name: Frontend Lint
@@ -70,29 +76,49 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
-        aws-region: us-east-1
+        # aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
+        aws-region: ${{ env.AWS_REGION }}
     - name: Login to Amazon ECR 
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
     - name: Build and Push Docker Image
       working-directory: starter/frontend
-      env:
-        IMAGE_TAG: latest
-        REPO_NAME: frontend
-        REACT_APP_MOVIE_API_URL: ${{ vars.REACT_APP_MOVIE_API_URL }}
+      # env:
+      #   REPO_NAME: frontend
+      #   REACT_APP_MOVIE_API_URL: ${{ vars.REACT_APP_MOVIE_API_URL }}
       run: |
-        docker build --build-arg=REACT_APP_MOVIE_API_URL="${REACT_APP_MOVIE_API_URL}" --tag 956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:$IMAGE_TAG .
-        docker push 956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:$IMAGE_TAG
+        docker build --build-arg=REACT_APP_MOVIE_API_URL="${{ env.REACT_APP_MOVIE_API_URL }}" -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} starter/frontend
+    - name: Tag Docker image
+        run: |
+          docker tag \
+            ${{ env.ECR_REPOSITORY }}:${{ github.sha }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+    - name: Push Docker image to ECR
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
     - name: Configure Kubeconfig
       working-directory: starter/frontend/k8s
       run: |
-        aws eks update-kubeconfig --name cluster --region us-east-1
-    - name: Deploy Docker Image to Amazon EKS
-      working-directory: starter/frontend/k8s
-      env:
-        IMAGE_TAG: latest
-        REPO_NAME: frontend
-      run: |
-          kustomize edit set image frontend=956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:$IMAGE_TAG
-          kustomize build | kubectl apply -f -
+        aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+    # - name: Deploy Docker Image to Amazon EKS
+    #   working-directory: starter/frontend/k8s
+      # env:
+      #   IMAGE_TAG: latest
+      #   REPO_NAME: frontend
+      # run: |
+      #     kustomize edit set image frontend=956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:${{ github.sha }}
+      #     kustomize build | kubectl apply -f -
+    - name: Deploy application to EKS
+        run: |
+          kubectl apply -k starter/frontend/k8s
+
+          kubectl set image deployment/frontend \
+            frontend=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+          kubectl rollout status deployment/frontend --timeout=180s
+
+      - name: Verify frontend service and pods
+        run: |
+          kubectl get deployment frontend
+          kubectl get service frontend
+          kubectl get pods -l app=frontend
