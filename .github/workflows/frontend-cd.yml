@@ -1,4 +1,4 @@
-name: Frontend Continuous Deployment
+name: frontend-ci-workflow
 
 on:
   workflow_dispatch:
