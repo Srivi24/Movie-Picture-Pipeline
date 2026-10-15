@@ -1,4 +1,9 @@
+node_modules
+.pytest_cache
+credentials
+
 # Terraform
+.terraform
 **/.terraform/*
 
 # Terraform state files
