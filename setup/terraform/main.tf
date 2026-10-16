@@ -313,7 +313,7 @@ resource "aws_iam_role_policy_attachment" "codebuild" {
 # Github Action role
 ####################
 resource "aws_iam_user" "github_action_user" {
-  name = "github-action-user2"
+  name = "github-action-user5"
 }
 
 resource "aws_iam_user_policy" "github_action_user_permission" {
