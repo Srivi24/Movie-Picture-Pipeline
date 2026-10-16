@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e -o pipefail
 
-echo "Fetching IAM github-action-user ARN"
-userarn=$(aws iam get-user --user-name github-action-user | jq -r .User.Arn)
+echo "Fetching IAM github-action-user2 ARN"
+userarn=$(aws iam get-user --user-name github-action-user2 | jq -r .User.Arn)
 
 # Download tool for manipulating aws-auth
 echo "Downloading tool..."
