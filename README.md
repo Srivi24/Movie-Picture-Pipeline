@@ -68,7 +68,16 @@ cd setup/terraform
 terraform apply
 ```
 
-4. Take note of the Terraform outputs. You'll need these later as you work on the project. You can always retrieve these values later with this command
+The defaults target `us-east-1`, the `cluster` EKS cluster name, and Kubernetes `1.35`.
+Set `aws_region`, `cluster_name`, or `k8s_version` with `-var` when needed. If you
+change the region or cluster name, update `AWS_REGION` or `EKS_CLUSTER_NAME` in both
+GitHub Actions deployment workflows to match.
+
+The optional `enable_private` variable disables the public EKS API endpoint and places
+worker nodes in the private subnet. GitHub-hosted runners cannot reach that private
+endpoint; use a runner with network access to the VPC if enabling it.
+
+3. Take note of the Terraform outputs. You'll need these later as you work on the project. You can always retrieve these values later with this command
 
 ```bash
 cd setup/terraform

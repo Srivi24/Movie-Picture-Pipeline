@@ -1,0 +1,124 @@
+name: frontend-cd-workflow
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'starter/frontend/**'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: frontend
+  EKS_CLUSTER_NAME: cluster
+  REACT_APP_MOVIE_API_URL: ${{ vars.REACT_APP_MOVIE_API_URL }}
+
+jobs:
+  lint-job:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    # environment: Devlopmnet Environment
+    env:
+      NODE_VERSION: "18.14"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Use Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: starter/frontend/package-lock.json
+    - name: Install Dependencies
+      working-directory: starter/frontend
+      run: npm ci
+    - name: Run Linter
+      working-directory: starter/frontend
+      run: npm run lint
+  test-job:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: 18.14
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    - name: Use Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: starter/frontend/package-lock.json
+    - name: Install Dependencies
+      working-directory: starter/frontend
+      run: npm ci
+    - name: Testing job
+      working-directory: starter/frontend
+      run: CI=true npm run test
+  build-job:
+    name: Build and Deploy Frontend Docker Image
+    needs: [lint-job, test-job]
+    runs-on: ubuntu-latest
+    # env:
+    #   REACT_APP_MOVIE_API_URL: 'http://localhost:5000'
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    - name: Use Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: starter/frontend/package-lock.json
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        # aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Login to Amazon ECR 
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+    - name: Build and Push Docker Image
+      working-directory: starter/frontend
+      # env:
+      #   REPO_NAME: frontend
+      #   REACT_APP_MOVIE_API_URL: ${{ vars.REACT_APP_MOVIE_API_URL }}
+      run: |
+        docker build --build-arg=REACT_APP_MOVIE_API_URL="${{ env.REACT_APP_MOVIE_API_URL }}" -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
+    - name: Tag Docker image
+      run: |
+        docker tag \
+          ${{ env.ECR_REPOSITORY }}:${{ github.sha }} \
+          ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+    - name: Push Docker image to ECR
+      run: |
+        docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+    - name: Configure Kubeconfig
+      working-directory: starter/frontend/k8s
+      run: |
+        aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+    # - name: Deploy Docker Image to Amazon EKS
+    #   working-directory: starter/frontend/k8s
+      # env:
+      #   IMAGE_TAG: latest
+      #   REPO_NAME: frontend
+      # run: |
+      #     kustomize edit set image frontend=956126322407.dkr.ecr.us-east-1.amazonaws.com/$REPO_NAME:${{ github.sha }}
+      #     kustomize build | kubectl apply -f -
+    - name: Deploy application to EKS
+      run: |
+        kubectl apply -k starter/frontend/k8s
+
+        kubectl set image deployment/frontend \
+          frontend=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+        kubectl rollout status deployment/frontend --timeout=180s
+
+    - name: Verify frontend service and pods
+      run: |
+        kubectl get deployment frontend
+        kubectl get service frontend
+        kubectl get pods -l app=frontend

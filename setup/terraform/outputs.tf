@@ -1,18 +1,28 @@
 output "frontend_ecr" {
-  value = aws_ecr_repository.frontend.repository_url
+  description = "Container registry URL for the frontend image."
+  value       = aws_ecr_repository.frontend.repository_url
 }
 output "backend_ecr" {
-  value = aws_ecr_repository.backend.repository_url
+  description = "Container registry URL for the backend image."
+  value       = aws_ecr_repository.backend.repository_url
 }
 
 output "cluster_name" {
-  value = aws_eks_cluster.main.name
+  description = "Name of the EKS cluster."
+  value       = aws_eks_cluster.main.name
 }
 
 output "cluster_version" {
-  value = aws_eks_cluster.main.version
+  description = "Kubernetes version running on the EKS control plane."
+  value       = aws_eks_cluster.main.version
+}
+
+output "aws_region" {
+  description = "AWS region containing the infrastructure."
+  value       = var.aws_region
 }
 
 output "github_action_user_arn" {
-  value = aws_iam_user.github_action_user.arn
+  description = "IAM user ARN to authorize in the EKS cluster for GitHub Actions."
+  value       = aws_iam_user.github_action_user.arn
 }

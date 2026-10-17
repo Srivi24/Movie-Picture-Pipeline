@@ -1,0 +1,120 @@
+name: backend-cd-workflow
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'starter/backend/**'
+env:
+  PYTHON_VERSION: "3.10"
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: backend
+  EKS_CLUSTER_NAME: cluster
+jobs:
+  lint-job:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    # environment: Devlopmnet Environment
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Install pipenv
+      run: python -m pip install pipenv
+    - name: Install dependencies
+      working-directory: starter/backend 
+      run: pipenv install
+    - name: Install flake8
+      working-directory: starter/backend
+      run: |
+        pipenv run pip install flake8
+        pipenv run flake8
+    - name: Run Linter
+      working-directory: starter/backend
+      run: pipenv run lint
+  test-job:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    - name: Setup Python
+      uses:  actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Install pipenv
+      run: python -m pip install pipenv
+    - name: Install dependencies
+      working-directory: starter/backend
+      run: pipenv install
+    - name: Install flake8
+      working-directory: starter/backend
+      run: |
+        pipenv run pip install flake8
+        pipenv run flake8
+    - name: Running tests
+      working-directory: starter/backend
+      run: |
+        pipenv install pytest
+        pipenv run test
+  build-job:
+    name: Build and Deploy Backend Docker Image
+    needs: [lint-job, test-job]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        # aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Login to Amazon ECR 
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+    - name: Build and Push Docker Image
+      working-directory: starter/backend
+      # env:
+      #   IMAGE_TAG: latest
+      #   REPO_NAME: backend
+      run: |
+        docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
+        docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+    - name: Update Kubeconfig
+      working-directory: starter/backend/k8s
+      run:
+        aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+    - name: Setup Kustomize
+      uses: imranismail/setup-kustomize@v2
+    - name: Deploy Docker Image to Amazon EKS
+      working-directory: starter/backend/k8s
+      # env:
+      #   IMAGE_TAG: latest
+      #   REPO_NAME: backend
+      run: |
+        kustomize edit set image backend=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+    # kustomize build | kubectl apply -f -
+    # - name: Verify cluster access
+    #   run: |
+    #     aws sts get-caller-identity
+    #     kubectl get nodes
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -k starter/backend/k8s
+
+    - name: Verify Kubernetes deployment
+      run: |
+        kubectl rollout status deployment/backend --timeout=900s
+
+    - name: Verify backend service and pods
+      run: |
+        kubectl get deployment backend
+        kubectl get service backend
+        kubectl get pods -l app=backend  
