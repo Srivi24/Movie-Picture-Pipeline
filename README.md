@@ -68,7 +68,16 @@ cd setup/terraform
 terraform apply
 ```
 
-4. Take note of the Terraform outputs. You'll need these later as you work on the project. You can always retrieve these values later with this command
+The defaults target `us-east-1`, the `cluster` EKS cluster name, and Kubernetes `1.35`.
+Set `aws_region`, `cluster_name`, or `k8s_version` with `-var` when needed. If you
+change the region or cluster name, update `AWS_REGION` or `EKS_CLUSTER_NAME` in both
+GitHub Actions deployment workflows to match.
+
+The optional `enable_private` variable disables the public EKS API endpoint and places
+worker nodes in the private subnet. GitHub-hosted runners cannot reach that private
+endpoint; use a runner with network access to the VPC if enabling it.
+
+3. Take note of the Terraform outputs. You'll need these later as you work on the project. You can always retrieve these values later with this command
 
 ```bash
 cd setup/terraform
@@ -79,7 +88,7 @@ terraform output
 
 1. Once everything is created, you'll need to generate AWS credentials for the IAM user account that Github Actions will use in order to interact with your AWS account.
 2. Launch the Cloud Gateway and go to the IAM service.
-3. Under users, you should only see the `github-action-user5` user account
+3. Under users, you should only see the `github-action-user` user account
 4. Click the account and go to `Security Credentials`
 5. Under `Access keys`  select `Create access key`
 6. Select `Application running outside AWS` and click `Next`, then `Create access key` to finish creating the keys
@@ -88,7 +97,7 @@ terraform output
 
 ### Add Github Action user to Kubernetes
 
-Now that the cluster and all AWS resources have been created, you'll need to add the `github-action-user5` IAM user ARN to the Kubernetes configuration that will allow that user to execute `kubectl` commands against the cluster.
+Now that the cluster and all AWS resources have been created, you'll need to add the `github-action-user` IAM user ARN to the Kubernetes configuration that will allow that user to execute `kubectl` commands against the cluster.
 
 1. Run the `init.sh` helper script in the `setup` folder
 
