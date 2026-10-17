@@ -101,10 +101,10 @@ jobs:
       run: |
         kustomize edit set image backend=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
     # kustomize build | kubectl apply -f -
-    - name: Verify cluster access
-      run: |
-        aws sts get-caller-identity
-        kubectl get nodes
+    # - name: Verify cluster access
+    #   run: |
+    #     aws sts get-caller-identity
+    #     kubectl get nodes
     - name: Deploy to Kubernetes
       run: |
         kubectl apply -k starter/backend/k8s
