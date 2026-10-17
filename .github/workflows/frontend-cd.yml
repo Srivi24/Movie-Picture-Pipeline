@@ -87,7 +87,7 @@ jobs:
       #   REPO_NAME: frontend
       #   REACT_APP_MOVIE_API_URL: ${{ vars.REACT_APP_MOVIE_API_URL }}
       run: |
-        docker build --build-arg=REACT_APP_MOVIE_API_URL="${{ env.REACT_APP_MOVIE_API_URL }}" -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} starter/frontend
+        docker build --build-arg=REACT_APP_MOVIE_API_URL="${{ env.REACT_APP_MOVIE_API_URL }}" -t ${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
     - name: Tag Docker image
       run: |
         docker tag \
